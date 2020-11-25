@@ -1,0 +1,12 @@
+- hosts: master
+  become: false
+  tasks:
+    
+  - name: Copy yaml file
+    copy:
+      src: nginx-env.yml
+      dest: ./
+
+  - name: Create environment variable POD_NAME
+    shell: kubectl apply -f nginx-env.yml    
+    

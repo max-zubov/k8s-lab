@@ -1,0 +1,12 @@
+- hosts: master
+  become: false
+  tasks:
+    
+  - name: Copy yaml file
+    copy:
+      src: nginx-pvc.yml
+      dest: ./
+
+  - name: Create PersistantVolume and Pod
+    shell: kubectl apply -f nginx-pvc.yml    
+    

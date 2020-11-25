@@ -1,0 +1,12 @@
+- hosts: master
+  become: false
+  tasks:
+    
+  - name: Copy yaml file
+    copy:
+      src: nginx-rep3.yml
+      dest: ./
+
+  - name: Set POD_NAME variable to index.html
+    shell: kubectl apply -f nginx-rep3.yml    
+    

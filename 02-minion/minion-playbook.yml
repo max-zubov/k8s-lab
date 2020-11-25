@@ -1,0 +1,120 @@
+- hosts: minion
+  become: true
+  tasks:
+
+# Docker
+  - name: Add repository
+    shell: | 
+        dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+    changed_when: false
+
+  - name: Install docker and its dependencies
+    dnf: 
+      name: "{{ packages }}"
+      state: present
+      update_cache: yes
+    vars:
+      packages:
+      - docker-ce 
+      - docker-ce-cli 
+      - containerd.io
+
+  - name: Configure docker
+    shell: | 
+        mkdir -p /etc/docker
+        echo '{  "exec-opts": ["native.cgroupdriver=systemd"], "log-driver": "journald", "storage-driver": "overlay2" }' > /etc/docker/daemon.json
+    changed_when: false
+
+  - name: Add user to docker group
+    user:
+      name: "{{ ansible_user }}"
+      groups: docker
+
+  - name: Start docker
+    service: 
+      name: docker 
+      state: started
+      enabled: yes
+
+      
+# System tutning
+  - name: Remove swapfile from /etc/fstab
+    mount:
+      name: "{{ item }}"
+      fstype: swap
+      state: absent
+    with_items:
+      - swap
+      - none
+
+  - name: Disable swap
+    command: swapoff -a
+    when: ansible_swaptotal_mb > 0
+    
+  - name: disable SELinux
+    command: setenforce 0
+    changed_when: false
+    register: result
+    failed_when: "'setenforce: SELinux is disabled' not in result.stderr and '' not in result.stdout"
+
+  - name: disable SELinux on reboot
+    selinux:
+      state: disabled
+
+  - name: ensure net.bridge.bridge-nf-call-ip6tables is set to 1
+    sysctl:
+      name: net.bridge.bridge-nf-call-ip6tables
+      value: 1
+      state: present
+
+  - name: ensure net.bridge.bridge-nf-call-iptables is set to 1
+    sysctl:
+      name: net.bridge.bridge-nf-call-iptables
+      value: 1
+      state: present
+
+    
+
+# Node Kubernetes    
+  - name: Ensure Kubernetes repository exists.
+    yum_repository:
+      name: kubernetes
+      description: Kubernetes YUM repository
+      enabled: true
+      gpgcheck: true
+      repo_gpgcheck: true
+      baseurl: https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
+      gpgkey: https://packages.cloud.google.com/yum/doc/yum-key.gpg https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+
+  - name: Install Kubernetes binaries
+    dnf: 
+      name: "{{ packages }}"
+      state: present
+      update_cache: yes
+    vars:
+      packages:
+        - kubelet 
+        - kubeadm
+        - kubectl
+
+  - name: Configure node ip
+    lineinfile:
+      path: /etc/sysconfig/kubelet
+      line: KUBELET_EXTRA_ARGS= --node-ip={{ node_ip }} --cgroup-driver=systemd
+
+  - name: Restart kubelet
+    service:
+      name: kubelet
+      daemon_reload: yes
+      state: restarted
+      
+# Node join      
+  - name: Copy the join command 
+    copy: 
+      src: ../join-command 
+      dest: /tmp/join-command.sh 
+      mode: 0777
+
+  - name: Join the node to cluster
+    command: sh /tmp/join-command.sh 
+    

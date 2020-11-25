@@ -1,0 +1,26 @@
+- hosts: master
+  become: false
+  tasks:
+    
+  - name: Create directory for configMap
+    file:
+      path: configmap
+      state: directory
+
+  - name: Copy nginx default config
+    copy:
+      src: default.conf
+      dest: ./configmap/default.conf
+
+  - name: Create configMap for nginx default config
+    shell: kubectl -n nginx-laba create configmap nginx-configmap --from-file=configmap/default.conf 
+
+
+  - name: Copy yaml file
+    copy:
+      src: nginx-configmap.yml
+      dest: ./
+
+  - name: Create deploy and service
+    shell: kubectl -n nginx-laba apply -f nginx-configmap.yml    
+  

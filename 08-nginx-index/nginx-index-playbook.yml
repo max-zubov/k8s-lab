@@ -1,0 +1,16 @@
+- hosts: minion
+  become: true
+  tasks:
+
+  - name: Create directory
+    file:
+      path: /mnt/task8
+      state: directory
+      mode: 0777
+
+  - name: Copy file
+    copy: 
+      src: index.html
+      dest: /mnt/task8/index.html
+      mode: 0666
+      

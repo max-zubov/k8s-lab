@@ -1,0 +1,11 @@
+- hosts: master
+  become: false
+  tasks:
+
+  - name: Copy nginx-deploy 
+    copy:
+      src: nginx-deploy.yml
+      dest: ./
+
+  - name: Deployment nginx
+    shell: kubectl apply -f nginx-deploy.yml

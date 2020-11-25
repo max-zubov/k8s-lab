@@ -1,0 +1,39 @@
+- hosts: master
+  become: false
+  tasks:
+
+# Dashboard
+  - name: Lunch dashboard
+    shell: | 
+        kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.0.4/aio/deploy/recommended.yaml
+    changed_when: false
+
+  - name: copy manifest
+    copy:
+      src: ./dashboard-adminuser-rolebinding.yml
+      dest: ./
+
+  - name: binding service-account
+    shell: | 
+        kubectl apply -f ./dashboard-adminuser-rolebinding.yml
+    changed_when: false
+
+  - name: Get token
+    shell: "kubectl get secret $(kubectl get serviceaccount admin-user -n kubernetes-dashboard -o jsonpath='{.secrets[0].name}') -n kubernetes-dashboard -o jsonpath='{.data.token}' | base64 --decode"
+    register: token
+
+  - name: Create file with token on localhost
+    shell: "echo {{ token.stdout }} > dashboard_token.txt"
+    delegate_to: localhost
+
+      
+  - name: copy manifest
+    copy:
+      src: ./components.yml
+      dest: ./
+
+  - name: Metrics-server install
+#    shell: kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+    shell: kubectl apply -f components.yml
+    changed_when: false    
+    
